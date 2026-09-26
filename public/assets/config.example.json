@@ -1,0 +1,5 @@
+{
+  "authority": "https://your-instance.zitadel.cloud",
+  "client_id": "YOUR_ZITADEL_CLIENT_ID",
+  "apiUrl": "https://your-api.example.com/api/applications.php"
+}

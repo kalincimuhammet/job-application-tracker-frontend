@@ -1,0 +1,104 @@
+@if(!authService.isAuthenticated()) {
+  <div class="login-screen">
+    <h1>Willkommen bei Bewerbungsübersicht</h1>
+    <p>Behalte den Überblick über deine Bewerbungen und deren Status.</p>
+    <button class="login-button" type="button" (click)="authService.login()">Mit Google anmelden</button>
+  </div>
+} @else { 
+<main class="app-shell">
+  <section class="form-panel" aria-labelledby="new-entry-title">
+
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Neuer Eintrag</p>
+        <h2 id="new-entry-title">Bewerbung hinzufügen</h2>
+      </div>    <div class="account-area">
+      <span class="account-name">{{ authService.displayName() }}</span>
+      <button class="logout-button" type="button" (click)="authService.logout()">Abmelden</button>
+    </div>
+    </div>
+    <form (ngSubmit)="addApplication()" class="application-form">
+      <label class="field field-wide"><span>Adresse der Stelle <b>*</b></span><input [ngModel]="form().address" (ngModelChange)="updateFormField('address', $event)" name="address" required placeholder="Unternehmen, Position oder Adresse" /></label>
+      <label class="field"><span>Wie beworben? <b>*</b></span><input [ngModel]="form().channel" (ngModelChange)="updateFormField('channel', $event)" name="channel" required placeholder="z. B. Portal, E-Mail, Jobbörse" /></label>
+      <label class="field"><span>Datum der Bewerbung</span><input type="date" [ngModel]="form().applicationDate" (ngModelChange)="updateFormField('applicationDate', $event)" name="applicationDate" /></label>
+      <label class="field"><span>Gehaltswunsch</span><input [ngModel]="form().salaryExpectation" (ngModelChange)="updateFormField('salaryExpectation', $event)" name="salaryExpectation" placeholder="z. B. 52.000 € brutto" /></label>
+      <label class="field"><span>Absagedatum</span><input type="date" [ngModel]="form().rejectionDate" (ngModelChange)="updateFormField('rejectionDate', $event)" name="rejectionDate" /></label>
+      <label class="field field-wide"><span>Bemerkung</span><textarea [ngModel]="form().notes" (ngModelChange)="updateFormField('notes', $event)" name="notes" rows="2" placeholder="Nächster Schritt, Kontaktperson oder Notizen"></textarea></label>
+      <button class="submit-button" type="submit">Eintrag speichern <span aria-hidden="true">+</span></button>
+    </form>
+  </section>
+
+  <section class="list-section" aria-labelledby="list-title">
+    <div class="section-heading list-heading"><div><p class="eyebrow">Deine Liste</p><h2 id="list-title">Aktuelle Bewerbungen</h2></div><span class="list-count">{{ filteredApplications().length }} von {{ applications().length }}</span></div>
+    <div class="list-filters">
+      <label class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <input [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" type="search" placeholder="Bewerbungen durchsuchen ..." aria-label="Bewerbungen durchsuchen" />
+      </label>
+
+      <label class="open-filter"><input [ngModel]="onlyToApply()" (ngModelChange)="onlyToApply.set($event)" type="checkbox" /> <span>Zu bewerben</span></label>
+      <label class="open-filter"><input [ngModel]="onlyOpen()" (ngModelChange)="onlyOpen.set($event)" type="checkbox" /> <span>Nur offene</span></label>
+    </div>
+    @if (applications().length === 0) {
+      <div class="empty-state"><span class="empty-icon" aria-hidden="true">+</span><p>Noch keine Bewerbungen eingetragen.</p><small>Fülle das Formular oben aus, um deine Übersicht zu starten.</small></div>
+    } @else if (filteredApplications().length === 0) {
+      <div class="empty-state filter-empty"><p>Keine passenden Bewerbungen.</p><small>Ändere deinen Suchbegriff oder deaktiviere den Filter.</small></div>
+    } @else {
+      <div class="application-list" role="table" aria-label="Aktuelle Bewerbungen">
+        <div class="application-row application-header" role="row">
+          <span role="columnheader">Stelle / Adresse</span>
+          <span role="columnheader">Beworben über</span>
+          <span role="columnheader">Bewerbung am</span>
+          <span role="columnheader">Gehaltswunsch</span>
+          <span role="columnheader">Status</span>
+          <span role="columnheader">Bemerkung</span>
+          <span aria-hidden="true"></span>
+        </div>
+        @for (application of filteredApplications(); track application.id) {
+          <div class="application-row" role="row">
+
+            <div class="position-cell editable-cell" role="cell" (dblclick)="beginEdit(application, 'address')">
+                <span class="status-dot" [class.rejected]="application.rejectionDate"></span>
+@if (editingCell()?.id === application.id && editingCell()?.field === 'address') {
+    <input class="inline-edit" [ngModel]="editValue()" (ngModelChange)="editValue.set($event)" (keydown.enter)="updateField(application, 'address', $any($event.target).value)" (keydown.escape)="cancelEdit()" aria-label="Adresse bearbeiten" autofocus />
+}@else {
+    @if (getAddressUrl(application.address); as addressUrl) {
+      <a [href]="addressUrl" target="_blank" rel="noopener noreferrer" title="{{ application.address }}">{{ formatAddress(application.address) }}</a>
+    } @else {
+      <strong title="{{ application.address }}">{{ application.address }}</strong>
+    }
+}
+        </div>
+            
+            <span class="channel" role="cell" title="{{ application.channel }}">{{ application.channel }}</span>
+            <div class="editable-cell" role="cell" (click)="beginEdit(application, 'applicationDate')">
+              @if (editingCell()?.id === application.id && editingCell()?.field === 'applicationDate') {
+                <input class="inline-edit" type="date" [ngModel]="editValue()" (ngModelChange)="editValue.set($event)" (keydown.enter)="updateField(application, 'applicationDate', $any($event.target).value)" (keydown.escape)="cancelEdit()" aria-label="Bewerbungsdatum bearbeiten" autofocus />
+              } @else { <span>{{ application.applicationDate ? formatDate(application.applicationDate) : 'Noch nicht beworben' }}</span> }
+            </div>
+            <div class="editable-cell" role="cell" (click)="beginEdit(application, 'salaryExpectation')">
+
+              @if (editingCell()?.id === application.id && editingCell()?.field === 'salaryExpectation') {
+                <input class="inline-edit" [ngModel]="editValue()" (ngModelChange)="editValue.set($event)" (keydown.enter)="updateField(application, 'salaryExpectation', $any($event.target).value)" (keydown.escape)="cancelEdit()" aria-label="Gehaltswunsch bearbeiten" autofocus />
+              } @else { <span>{{ application.salaryExpectation || '—' }}</span> }
+            
+            </div>
+
+            <div class="editable-cell" role="cell" [class.rejected-text]="application.rejectionDate" (click)="beginEdit(application, 'rejectionDate')">
+              @if (editingCell()?.id === application.id && editingCell()?.field === 'rejectionDate') {
+                <input class="inline-edit" type="date" [ngModel]="editValue()" (ngModelChange)="editValue.set($event)" (keydown.enter)="updateField(application, 'rejectionDate', $any($event.target).value)" (keydown.escape)="cancelEdit()" aria-label="Absagedatum bearbeiten" autofocus />
+              } @else { <span>{{ application.rejectionDate ? formatDate(application.rejectionDate) : 'Offen' }}</span> }
+            </div>
+            <div class="editable-cell notes" role="cell" title="{{ application.notes }}" (click)="beginEdit(application, 'notes')">
+              @if (editingCell()?.id === application.id && editingCell()?.field === 'notes') {
+                <input class="inline-edit" [ngModel]="editValue()" (ngModelChange)="editValue.set($event)" (keydown.enter)="updateField(application, 'notes', $any($event.target).value)" (keydown.escape)="cancelEdit()" aria-label="Bemerkung bearbeiten" autofocus />
+              } @else { <span>{{ application.notes || '—' }}</span> }
+            </div>
+            <button class="delete-button" type="button" (click)="removeApplication(application.id)" aria-label="Bewerbung löschen" title="Bewerbung löschen">×</button>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</main>
+}
