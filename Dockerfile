@@ -1,13 +1,14 @@
-# 1. Build-Phase: Nutzt ein garantiertes, brandaktuelles Node 22 Image
-FROM node:22-alpine AS build
-WORKDIR /app
+# Stage 1: Build
+FROM registry.access.redhat.com/ubi9/nodejs-24 AS build
+WORKDIR /opt/app-root/src
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build -- --configuration production
+RUN npm run build
 
-# 2. Runtime-Phase: Liefert die fertige SPA über einen schlanken Webserver aus
-FROM nginxinc/nginx-unprivileged:alpine
-COPY --from=build /app/dist/bewerbungs/browser /usr/share/nginx/html
+# Stage 2: Runtime
+FROM registry.access.redhat.com/ubi9/nginx-126
+COPY --from=build --chown=1001:0 /opt/app-root/src/dist/job-application-tracker-frontend/browser/ /opt/app-root/src/
+COPY spa.conf /opt/app-root/etc/nginx.default.d/spa.conf
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
